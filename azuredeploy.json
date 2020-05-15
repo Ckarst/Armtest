@@ -763,7 +763,7 @@
                                 "schedule": {
                                     "hours": [
                                         8
-                                    ] //8am UTC
+                                    ] 
                                 }
                             }
                         }
