@@ -652,6 +652,85 @@
                     ]
                 },
                 {
+                    "name": "[concat(parameters('dataFactoryName'),'/Load_DB_Driver')]",
+                    "type": "Microsoft.DataFactory/factories/pipelines",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "activities": [
+                            {
+                                "name": "Lookup1",
+                                "type": "Lookup",
+                                "dependsOn": [
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [
+                                ],
+                                "typeProperties": {
+                                    "source": {
+                                        "type": "DelimitedTextSource",
+                                        "storeSettings": {
+                                            "type": "AzureBlobStorageReadSettings",
+                                            "recursive": true
+                                        },
+                                        "formatSettings": {
+                                            "type": "DelimitedTextReadSettings"
+                                        }
+                                    },
+                                    "dataset": {
+                                        "referenceName": "Pipeline_Metadata",
+                                        "type": "DatasetReference"
+                                    },
+                                    "firstRowOnly": false
+                                }
+                            },
+                            {
+                                "name": "Load_DB_Driver",
+                                "type": "ExecutePipeline",
+                                "dependsOn": [
+                                    {
+                                        "activity": "Lookup1",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "userProperties": [
+                                ],
+                                "typeProperties": {
+                                    "pipeline": {
+                                        "referenceName": "Load_DB",
+                                        "type": "PipelineReference"
+                                    },
+                                    "waitOnCompletion": true,
+                                    "parameters": {
+                                        "pipelineList": {
+                                            "value": "@activity('Lookup1').output.value",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            }
+                        ],
+                        "folder": {
+                            "name": "Loading DB"
+                        },
+                        "annotations": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/pipelines/Load_DB')]",
+                        "[concat(variables('factoryId'), '/datasets/Pipeline_Metadata')]"
+
+                    ]
+                },
+                {
                     "name": "[concat(parameters('dataFactoryName'), '/Load_DB_Driver_Trigger')]",
                     "type": "Microsoft.DataFactory/factories/triggers",
                     "apiVersion": "2018-06-01",
