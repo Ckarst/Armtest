@@ -32,12 +32,6 @@
                 "description": "Location for all resources."
             }
         },
-        "dataFactoryName": {
-            "type": "string",
-            "metadata": {
-                "description":"Data Factory Name"
-            }
-        },
         "dataFactoryLocation": {
             "type": "string",
             "defaultValue": "East US",
@@ -71,8 +65,9 @@
         }
     },
     "variables": {
-        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('dataFactoryName'))]",
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', variables('dataFactoryName'))]",
         "sqlServerName": "[concat('sqlserver', uniqueString(subscription().id, resourceGroup().id))]",
+        "dataFactoryName":"[concat('adf', uniqueString(subscription().id, resourceGroup().id))]",
         "databaseEdition": "Basic",
         "databaseCollation": "SQL_Latin1_General_CP1_CI_AS",
         "databaseServiceObjectiveName": "Basic"
@@ -209,7 +204,7 @@
         },
         {
             "type": "Microsoft.DataFactory/factories",
-            "name": "[parameters('dataFactoryName')]",
+            "name": "[variables('dataFactoryName')]",
             "apiVersion": "2018-06-01",
             "properties": {
                 },
@@ -219,7 +214,7 @@
             },
             "resources": [
                 {
-                    "name": "[concat(parameters('dataFactoryName'), '/SQLDB')]",
+                    "name": "[concat(variables('dataFactoryName'), '/SQLDB')]",
                     "type": "Microsoft.DataFactory/factories/linkedServices",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -232,12 +227,12 @@
                         }
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[parameters('databaseName')]"
                     ]
                 },
                 {
-                   "name": "[concat(parameters('dataFactoryName'), '/Covid_Storage')]",
+                   "name": "[concat(variables('dataFactoryName'), '/Covid_Storage')]",
                     "type": "Microsoft.DataFactory/factories/linkedServices",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -250,11 +245,11 @@
                         }
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]"
+                        "[variables('dataFactoryName')]"
                     ]   
                 },
                 {
-                    "name": "[concat(parameters('dataFactoryName'), '/Http_Server')]",
+                    "name": "[concat(variables('dataFactoryName'), '/Http_Server')]",
                     "type": "Microsoft.DataFactory/factories/linkedServices",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -269,11 +264,11 @@
                             }
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]"
+                        "[variables('dataFactoryName')]"
                     ]
                 },
                 {
-                "name": "[concat(parameters('dataFactoryName'), '/HTTP_parquet')]",
+                "name": "[concat(variables('dataFactoryName'), '/HTTP_parquet')]",
                 "type": "Microsoft.DataFactory/factories/datasets",
                 "apiVersion": "2018-06-01",
                 "properties": {
@@ -301,12 +296,12 @@
                     "schema": []
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/linkedServices/Http_Server')]"
                     ]
                 },
                 {
-                    "name": "[concat(parameters('dataFactoryName'), '/DB_Connection')]",
+                    "name": "[concat(variables('dataFactoryName'), '/DB_Connection')]",
                     "type": "Microsoft.DataFactory/factories/datasets",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -343,12 +338,12 @@
                         ]
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/linkedServices/SQLDB')]"
                     ]
                 },
                 {
-                    "name": "[concat(parameters('dataFactoryName'), '/DB_Parquet_files')]",
+                    "name": "[concat(variables('dataFactoryName'), '/DB_Parquet_files')]",
                     "type": "Microsoft.DataFactory/factories/datasets",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -395,12 +390,12 @@
                         ]
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/linkedServices/Covid_Storage')]"
                     ]
                 },
                 {
-                    "name": "[concat(parameters('dataFactoryName'), '/Pipeline_Metadata')]",
+                    "name": "[concat(variables('dataFactoryName'), '/Pipeline_Metadata')]",
                     "type": "Microsoft.DataFactory/factories/datasets",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -460,12 +455,12 @@
                                 ]
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/linkedServices/Covid_Storage')]"
                     ]
                 },
                 {
-                    "name": "[concat(parameters('dataFactoryName'),'/Load_DB')]",
+                    "name": "[concat(variables('dataFactoryName'),'/Load_DB')]",
                     "type": "Microsoft.DataFactory/factories/pipelines",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -646,13 +641,13 @@
                         ]
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/datasets/DB_Parquet_files')]",
                         "[concat(variables('factoryId'), '/datasets/DB_Connection')]"
                     ]
                 },
                 {
-                    "name": "[concat(parameters('dataFactoryName'),'/Load_DB_Driver')]",
+                    "name": "[concat(variables('dataFactoryName'),'/Load_DB_Driver')]",
                     "type": "Microsoft.DataFactory/factories/pipelines",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -724,14 +719,14 @@
                         ]
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/pipelines/Load_DB')]",
                         "[concat(variables('factoryId'), '/datasets/Pipeline_Metadata')]"
 
                     ]
                 },
                 {
-                    "name": "[concat(parameters('dataFactoryName'), '/Load_DB_Driver_Trigger')]",
+                    "name": "[concat(variables('dataFactoryName'), '/Load_DB_Driver_Trigger')]",
                     "type": "Microsoft.DataFactory/factories/triggers",
                     "apiVersion": "2018-06-01",
                     "properties": {
@@ -766,7 +761,7 @@
                         }
                     },
                     "dependsOn": [
-                        "[parameters('dataFactoryName')]",
+                        "[variables('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/pipelines/Load_DB_Driver')]"
                     ]
                 }
