@@ -62,10 +62,20 @@
             "metadata": {
                 "description": "Start time for the trigger."
             }
+        },
+        "databaseName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Database."
+            }
         }
     },
     "variables": {
-        "sqlServerName": "[concat('sqlserver', uniqueString(subscription().id, resourceGroup().id))]"
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('dataFactoryName'))]",
+        "sqlServerName": "[concat('sqlserver', uniqueString(subscription().id, resourceGroup().id))]",
+        "databaseEdition": "Basic",
+        "databaseCollation": "SQL_Latin1_General_CP1_CI_AS",
+        "databaseServiceObjectiveName": "Basic"
     },
     "resources": [
         {
@@ -81,6 +91,19 @@
                 "administratorLoginPassword": "[parameters('sqlAdministratorLoginPassword')]",
                 "version": "12.0"
             }
-        }        
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('storageAccountName'), '/default/curated')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "Container"
+            }
+        }
+        
     ]
 }
