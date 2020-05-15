@@ -208,9 +208,9 @@
             }
         },
         {
+            "type": "Microsoft.DataFactory/factories",
             "name": "[parameters('dataFactoryName')]",
             "apiVersion": "2018-06-01",
-            "type": "Microsoft.DataFactory/factories",
             "properties": {
                 },
             "location": "[parameters('dataFactoryLocation')]",
