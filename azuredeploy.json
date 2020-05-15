@@ -649,7 +649,46 @@
                         "[parameters('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/datasets/DB_Parquet_files')]",
                         "[concat(variables('factoryId'), '/datasets/DB_Connection')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/Load_DB_Driver_Trigger')]",
+                    "type": "Microsoft.DataFactory/factories/triggers",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [
 
+                        ],
+                        "runtimeState": "Started",
+                        "pipelines": [
+                            {
+                                "pipelineReference": {
+                                    "referenceName": "Load_DB_Driver",
+                                    "type": "PipelineReference"
+                                },
+                                "parameters": {
+
+                                }
+                            }
+                        ],
+                        "type": "ScheduleTrigger",
+                        "typeProperties": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1,
+                                "startTime": "[parameters('triggerStartTime')]",
+                                "timeZone": "UTC",
+                                "schedule": {
+                                    "hours": [
+                                        8
+                                    ] //8am UTC
+                                }
+                            }
+                        }
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/pipelines/Load_DB_Driver')]"
                     ]
                 }
             ]
