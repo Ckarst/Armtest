@@ -31,6 +31,37 @@
             "metadata": {
                 "description": "Location for all resources."
             }
+        },
+        "dataFactoryName": {
+            "type": "string",
+            "metadata": {
+                "description":"Data Factory Name"
+            }
+        },
+        "dataFactoryLocation": {
+            "type": "string",
+            "defaultValue": "East US",
+            "metadata": {
+                "description": "Location of the data factory. Currently, only East US, East US 2, and West Europe are supported. "
+            }
+        },
+        "storageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Azure storage account that contains the input/output data."
+            }
+        },
+        "storageAccountKey": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Key for the Azure storage account."
+            }
+        },
+        "triggerStartTime": {
+            "type": "string",
+            "metadata": {
+                "description": "Start time for the trigger."
+            }
         }
     },
     "variables": {
