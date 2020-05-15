@@ -235,6 +235,234 @@
                         "[parameters('dataFactoryName')]",
                         "[parameters('databaseName')]"
                     ]
+                },
+                {
+                   "name": "[concat(parameters('dataFactoryName'), '/Covid_Storage')]",
+                    "type": "Microsoft.DataFactory/factories/linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [
+
+                        ],
+                        "type": "AzureBlobStorage",
+                        "typeProperties": {
+                            "connectionString": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',parameters('storageAccountKey'))]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]"
+                    ]   
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/Http_Server')]",
+                    "type": "Microsoft.DataFactory/factories/linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [
+
+                        ],
+                        "type": "HttpServer",
+                        "typeProperties": {
+                            "url": "https://pancovidresponse.blob.core.windows.net/curated/",
+                            "enableServerCertificateValidation": true,
+                            "authenticationType": "Anonymous"
+                            }
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]"
+                    ]
+                },
+                {
+                "name": "[concat(parameters('dataFactoryName'), '/HTTP_parquet')]",
+                "type": "Microsoft.DataFactory/factories/datasets",
+                "apiVersion": "2018-06-01",
+                "properties": {
+                    "linkedServiceName": {
+                        "referenceName": "Http_Server",
+                        "type": "LinkedServiceReference"
+                    },
+                    "parameters": {
+                        "RelativeURL": {
+                        "type": "string"
+                        }
+                    },
+                    "folder": {
+                        "name": "LoadDB"
+                        },
+                    "annotations": [],
+                    "type": "Parquet",
+                    "typeProperties": {
+                        "location": {
+                            "type": "HttpServerLocation",
+                            "relativeUrl": "@dataset().RelativeURL"
+                        },
+                        "compressionCodec": "none"
+                    },
+                    "schema": []
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/Http_Server')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/DB_Connection')]",
+                    "type": "Microsoft.DataFactory/factories/datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "SQLDB",
+                            "type": "LinkedServiceReference"
+                        },
+                        "parameters": {
+                            "SinkTable": {
+                                "type": "string"
+                            },
+                            "Schema": {
+                                "type": "string",
+                                "defaultValue": "dbo"
+                            }
+                        },
+                        "folder": {
+                            "name": "LoadDB"
+                        },
+                        "annotations": [
+                        ],
+                        "type": "AzureSqlTable",
+                        "typeProperties": {
+                            "schema": {
+                                "value": "@dataset().Schema",
+                                "type": "Expression"
+                            },
+                            "table": {
+                                "value": "@dataset().SinkTable",
+                                "type": "Expression"
+                            }
+                        },
+                        "schema": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/SQLDB')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/DB_Parquet_files')]",
+                    "type": "Microsoft.DataFactory/factories/datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "Covid_Storage",
+                            "type": "LinkedServiceReference"
+                        },
+                        "parameters": {
+                            "container": {
+                                "type": "string"
+                            },
+                            "directory": {
+                                "type": "string"
+                            },
+                            "file": {
+                                "type": "string"
+                            }
+                        },
+                        "folder": {
+                            "name": "LoadDB"
+                        },
+                        "annotations": [
+                        ],
+                        "type": "Parquet",
+                        "typeProperties": {
+                            "location": {
+                                "type": "AzureBlobStorageLocation",
+                                "fileName": {
+                                    "value": "@dataset().file",
+                                    "type": "Expression"
+                                },
+                                "folderPath": {
+                                    "value": "@dataset().directory",
+                                    "type": "Expression"
+                                },
+                                "container": {
+                                    "value": "@dataset().container",
+                                    "type": "Expression"
+                                }
+                            },
+                            "compressionCodec": "snappy"
+                        },
+                        "schema": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/Covid_Storage')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/Pipeline_Metadata')]",
+                    "type": "Microsoft.DataFactory/factories/datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "Http_Server",
+                            "type": "LinkedServiceReference"
+                        },
+                        "folder": {
+                            "name": "LoadDB"
+                        },
+                        "annotations": [
+                        ],
+                        "type": "DelimitedText",
+                        "typeProperties": {
+                            "location": {
+                                 "type": "HttpServerLocation",
+                                "relativeUrl": "Metadata/DataSource_Metadata.txt"
+                                },
+                            "columnDelimiter": ",",
+                            "escapeChar": "\\",
+                            "firstRowAsHeader": true,
+                            "quoteChar": "\""
+                        },
+                        "schema": [
+                                    {
+                                    "name": "Pipeline",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SinkSchema",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "RelativeURL",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "StagePath",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SinkTable",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SourceContainer",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SourceDirectory",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SourceFileName",
+                                    "type": "String"
+                                    }
+                                ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/Covid_Storage')]"
+                    ]
                 }
             ]
         }
