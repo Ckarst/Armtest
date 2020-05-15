@@ -1,225 +1,777 @@
 {
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "adminUsername": {
-      "type": "string",
-      "metadata": {
-        "description": "Username for the Virtual Machine."
-      }
-    },
-    "adminPassword": {
-      "type": "securestring",
-      "metadata": {
-        "description": "Password for the Virtual Machine."
-      }
-    },
-    "dnsLabelPrefix": {
-      "type": "string",
-      "metadata": {
-        "description": "Unique DNS Name for the Public IP used to access the Virtual Machine."
-      }
-    },
-    "windowsOSVersion": {
-      "type": "string",
-      "defaultValue": "2016-Datacenter",
-      "allowedValues": [
-        "2008-R2-SP1",
-        "2012-Datacenter",
-        "2012-R2-Datacenter",
-        "2016-Nano-Server",
-        "2016-Datacenter-with-Containers",
-        "2016-Datacenter",
-        "2019-Datacenter"
-      ],
-      "metadata": {
-        "description": "The Windows version for the VM. This will pick a fully patched image of this given Windows version."
-      }
-    },
-    "vmSize": {
-      "type": "string",
-      "defaultValue": "Standard_D2_v3",
-      "metadata": {
-        "description": "Size of the virtual machine."
-      }
-    },
-    "location": {
-      "type": "string",
-      "defaultValue": "[resourceGroup().location]",
-      "metadata": {
-        "description": "Location for all resources."
-      }
-    }
-  },
-  "variables": {
-    "storageAccountName": "[concat(uniquestring(resourceGroup().id), 'sawinvm')]",
-    "nicName": "myVMNic",
-    "addressPrefix": "10.0.0.0/16",
-    "subnetName": "Subnet",
-    "subnetPrefix": "10.0.0.0/24",
-    "publicIPAddressName": "myPublicIP",
-    "vmName": "SimpleWinVM",
-    "virtualNetworkName": "MyVNET",
-    "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]",
-    "networkSecurityGroupName": "default-NSG"
-  },
-  "resources": [
-    {
-      "type": "Microsoft.Storage/storageAccounts",
-      "apiVersion": "2018-11-01",
-      "name": "[variables('storageAccountName')]",
-      "location": "[parameters('location')]",
-      "sku": {
-        "name": "Standard_LRS"
-      },
-      "kind": "Storage",
-      "properties": {}
-    },
-    {
-      "type": "Microsoft.Network/publicIPAddresses",
-      "apiVersion": "2018-11-01",
-      "name": "[variables('publicIPAddressName')]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "publicIPAllocationMethod": "Dynamic",
-        "dnsSettings": {
-          "domainNameLabel": "[parameters('dnsLabelPrefix')]"
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "sqlAdministratorLogin": {
+            "type": "string",
+            "metadata": {
+                "description": "The administrator username of the SQL Server."
+            }
+        },
+        "sqlAdministratorLoginPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The administrator password of the SQL Server."
+            }
+        },
+        "transparentDataEncryption": {
+            "type": "string",
+            "allowedValues": [
+                "Enabled",
+                "Disabled"
+            ],
+            "defaultValue": "Enabled",
+            "metadata": {
+                "description": "Enable or disable Transparent Data Encryption (TDE) for the database."
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "dataFactoryName": {
+            "type": "string",
+            "metadata": {
+                "description":"Data Factory Name"
+            }
+        },
+        "dataFactoryLocation": {
+            "type": "string",
+            "defaultValue": "East US",
+            "metadata": {
+                "description": "Location of the data factory. Currently, only East US, East US 2, and West Europe are supported. "
+            }
+        },
+        "storageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Azure storage account that contains the input/output data."
+            }
+        },
+        "storageAccountKey": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Key for the Azure storage account."
+            }
+        },
+        "triggerStartTime": {
+            "type": "string",
+            "metadata": {
+                "description": "Start time for the trigger."
+            }
+        },
+
+        "databaseName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Database."
+            }
         }
-      }
     },
-    {
-      "comments":  "Default Network Security Group for template",
-      "type":  "Microsoft.Network/networkSecurityGroups",
-      "apiVersion":  "2019-08-01",
-      "name":  "[variables('networkSecurityGroupName')]",
-      "location":  "[parameters('location')]",
-      "properties": {
-        "securityRules": [
-          {
-            "name":  "default-allow-3389",
+    "variables": {
+        "factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('dataFactoryName'))]",
+        "sqlServerName": "[concat('sqlserver', uniqueString(subscription().id, resourceGroup().id))]",
+        "databaseEdition": "Basic",
+        "databaseCollation": "SQL_Latin1_General_CP1_CI_AS",
+        "databaseServiceObjectiveName": "Basic"
+    },
+    "resources": [
+        {
+            "name": "[variables('sqlServerName')]",
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2014-04-01",
+            "location": "[parameters('location')]",
+            "tags": {
+                "displayName": "SqlServer"
+            },
             "properties": {
-              "priority":  1000,
-              "access":  "Allow",
-              "direction":  "Inbound",
-              "destinationPortRange":  "3389",
-              "protocol":  "Tcp",
-              "sourcePortRange":  "*",
-              "sourceAddressPrefix":  "*",
-              "destinationAddressPrefix":  "*"
-            }
-          }
-        ]
-      }
-    },
-    {
-      "type": "Microsoft.Network/virtualNetworks",
-      "apiVersion": "2018-11-01",
-      "name": "[variables('virtualNetworkName')]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
-      ],
-      "properties": {
-        "addressSpace": {
-          "addressPrefixes": [
-            "[variables('addressPrefix')]"
-          ]
+                "administratorLogin": "[parameters('sqlAdministratorLogin')]",
+                "administratorLoginPassword": "[parameters('sqlAdministratorLoginPassword')]",
+                "version": "12.0"
+            },
+            "resources": [
+                {
+                    "name": "[parameters('databaseName')]",
+                    "type": "databases",
+                    "apiVersion": "2014-04-01",
+                    "location": "[parameters('location')]",
+                    "tags": {
+                        "displayName": "Database"
+                    },
+                    "properties": {
+                        "edition": "[variables('databaseEdition')]",
+                        "collation": "[variables('databaseCollation')]",
+                        "requestedServiceObjectiveName": "[variables('databaseServiceObjectiveName')]"
+                    },
+                    "dependsOn": [
+                        "[variables('sqlServerName')]"
+                    ],
+                    "resources": [
+                        {
+                            "comments": "Transparent Data Encryption",
+                            "name": "current",
+                            "type": "transparentDataEncryption",
+                            "apiVersion": "2014-04-01",
+                            "properties": {
+                                "status": "[parameters('transparentDataEncryption')]"
+                            },
+                            "dependsOn": [
+                                "[parameters('databaseName')]"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "AllowAllMicrosoftAzureIps",
+                    "type": "firewallrules",
+                    "apiVersion": "2014-04-01",
+                    "location": "[parameters('location')]",
+                    "properties": {
+                        "endIpAddress": "0.0.0.0",
+                        "startIpAddress": "0.0.0.0"
+                    },
+                    "dependsOn": [
+                        "[variables('sqlServerName')]"
+                    ]
+                }
+            ]
         },
-        "subnets": [
-          {
-            "name": "[variables('subnetName')]",
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[parameters('storageAccountName')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard_RAGRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
             "properties": {
-              "addressPrefix": "[variables('subnetPrefix')]",
-              "networkSecurityGroup": {
-                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
-              }
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [
+                    ],
+                    "ipRules": [
+                    ],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "accessTier": "Hot"
             }
-          }
-        ]
-      }
-    },
-    {
-      "type": "Microsoft.Network/networkInterfaces",
-      "apiVersion": "2018-11-01",
-      "name": "[variables('nicName')]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]",
-        "[resourceId('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]"
-      ],
-      "properties": {
-        "ipConfigurations": [
-          {
-            "name": "ipconfig1",
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('storageAccountName'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "sku": {
+                "name": "Standard_RAGRS",
+                "tier": "Standard"
+            },
             "properties": {
-              "privateIPAllocationMethod": "Dynamic",
-              "publicIPAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
-              },
-              "subnet": {
-                "id": "[variables('subnetRef')]"
-              }
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "enabled": true,
+                    "days": 1
+                }
             }
-          }
-        ]
-      }
-    },
-    {
-      "type": "Microsoft.Compute/virtualMachines",
-      "apiVersion": "2018-10-01",
-      "name": "[variables('vmName')]",
-      "location": "[parameters('location')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
-        "[resourceId('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
-      ],
-      "properties": {
-        "hardwareProfile": {
-          "vmSize": "[parameters('vmSize')]"
         },
-        "osProfile": {
-          "computerName": "[variables('vmName')]",
-          "adminUsername": "[parameters('adminUsername')]",
-          "adminPassword": "[parameters('adminPassword')]"
-        },
-        "storageProfile": {
-          "imageReference": {
-            "publisher": "MicrosoftWindowsServer",
-            "offer": "WindowsServer",
-            "sku": "[parameters('windowsOSVersion')]",
-            "version": "latest"
-          },
-          "osDisk": {
-            "createOption": "FromImage"
-          },
-          "dataDisks": [
-            {
-              "diskSizeGB": 1023,
-              "lun": 0,
-              "createOption": "Empty"
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2019-06-01",
+            "name": "[concat(parameters('storageAccountName'), '/default/curated')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]"
+            ],
+            "properties": {
+                "publicAccess": "Container"
             }
-          ]
         },
-        "networkProfile": {
-          "networkInterfaces": [
-            {
-              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
-            }
-          ]
-        },
-        "diagnosticsProfile": {
-          "bootDiagnostics": {
-            "enabled": true,
-            "storageUri": "[reference(resourceId('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))).primaryEndpoints.blob]"
-          }
+        {
+            "name": "[parameters('dataFactoryName')]",
+            "apiVersion": "2018-06-01",
+            "type": "Microsoft.DataFactory/factories",
+            "location": "[parameters('dataFactoryLocation')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "resources": [
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/SQLDB')]",
+                    "type": "Microsoft.DataFactory/factories/linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [
+
+                        ],
+                        "type": "AzureSqlDatabase",
+                        "typeProperties": {
+                            "connectionString": "[concat('Server=tcp:',variables('sqlServerName'),'.database.windows.net,1433;Database=',parameters('databaseName'),';User ID=', parameters('sqlAdministratorLogin'),'@',variables('sqlServerName'),';Password=',parameters('sqlAdministratorLoginPassword'),';Trusted_Connection=False;Encrypt=True;Connection Timeout=30')]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[parameters('databaseName')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/Covid_Storage')]",
+                    "type": "Microsoft.DataFactory/factories/linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [
+
+                        ],
+                        "type": "AzureBlobStorage",
+                        "typeProperties": {
+                            "connectionString": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',parameters('storageAccountKey'))]"
+                        }
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/Http_Server')]",
+                    "type": "Microsoft.DataFactory/factories/linkedServices",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [
+
+                        ],
+                        "type": "HttpServer",
+                        "typeProperties": {
+                            "url": "https://pancovidresponse.blob.core.windows.net/curated/",
+                            "enableServerCertificateValidation": true,
+                            "authenticationType": "Anonymous"
+                            }
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]"
+                    ]
+                },
+                 {
+                "name": "[concat(parameters('dataFactoryName'), '/HTTP_parquet')]",
+                "type": "Microsoft.DataFactory/factories/datasets",
+                "apiVersion": "2018-06-01",
+                "properties": {
+                    "linkedServiceName": {
+                        "referenceName": "Http_Server",
+                        "type": "LinkedServiceReference"
+                    },
+                    "parameters": {
+                        "RelativeURL": {
+                        "type": "string"
+                        }
+                    },
+                    "folder": {
+                        "name": "LoadDB"
+                        },
+                    "annotations": [],
+                    "type": "Parquet",
+                    "typeProperties": {
+                        "location": {
+                            "type": "HttpServerLocation",
+                            "relativeUrl": "@dataset().RelativeURL"
+                        },
+                        "compressionCodec": "none"
+                    },
+                    "schema": []
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/Http_Server')]"
+                    ]
+                },   
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/DB_Connection')]",
+                    "type": "Microsoft.DataFactory/factories/datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "SQLDB",
+                            "type": "LinkedServiceReference"
+                        },
+                        "parameters": {
+                            "SinkTable": {
+                                "type": "string"
+                            },
+                            "Schema": {
+                                "type": "string",
+                                "defaultValue": "dbo"
+                            }
+                        },
+                        "folder": {
+                            "name": "LoadDB"
+                        },
+                        "annotations": [
+                        ],
+                        "type": "AzureSqlTable",
+                        "typeProperties": {
+                            "schema": {
+                                "value": "@dataset().Schema",
+                                "type": "Expression"
+                            },
+                            "table": {
+                                "value": "@dataset().SinkTable",
+                                "type": "Expression"
+                            }
+                        },
+                        "schema": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/SQLDB')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/DB_Parquet_files')]",
+                    "type": "Microsoft.DataFactory/factories/datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "Covid_Storage",
+                            "type": "LinkedServiceReference"
+                        },
+                        "parameters": {
+                            "container": {
+                                "type": "string"
+                            },
+                            "directory": {
+                                "type": "string"
+                            },
+                            "file": {
+                                "type": "string"
+                            }
+                        },
+                        "folder": {
+                            "name": "LoadDB"
+                        },
+                        "annotations": [
+                        ],
+                        "type": "Parquet",
+                        "typeProperties": {
+                            "location": {
+                                "type": "AzureBlobStorageLocation",
+                                "fileName": {
+                                    "value": "@dataset().file",
+                                    "type": "Expression"
+                                },
+                                "folderPath": {
+                                    "value": "@dataset().directory",
+                                    "type": "Expression"
+                                },
+                                "container": {
+                                    "value": "@dataset().container",
+                                    "type": "Expression"
+                                }
+                            },
+                            "compressionCodec": "snappy"
+                        },
+                        "schema": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/Covid_Storage')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/Pipeline_Metadata')]",
+                    "type": "Microsoft.DataFactory/factories/datasets",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "linkedServiceName": {
+                            "referenceName": "Http_Server",
+                            "type": "LinkedServiceReference"
+                        },
+                        "folder": {
+                            "name": "LoadDB"
+                        },
+                        "annotations": [
+                        ],
+                        "type": "DelimitedText",
+                        "typeProperties": {
+                            "location": {
+                                 "type": "HttpServerLocation",
+                                "relativeUrl": "Metadata/DataSource_Metadata.txt"
+                                },
+                            "columnDelimiter": ",",
+                            "escapeChar": "\\",
+                            "firstRowAsHeader": true,
+                            "quoteChar": "\""
+                        },
+                        "schema": [
+                                    {
+                                    "name": "Pipeline",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SinkSchema",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "RelativeURL",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "StagePath",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SinkTable",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SourceContainer",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SourceDirectory",
+                                    "type": "String"
+                                    },
+                                    {
+                                    "name": "SourceFileName",
+                                    "type": "String"
+                                    }
+                                ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/linkedServices/Covid_Storage')]"
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'),'/Load_DB')]",
+                    "type": "Microsoft.DataFactory/factories/pipelines",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "activities": [
+                          {
+                "name": "InterateDataSources",
+                "type": "ForEach",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@pipeline().parameters.pipelineList",
+                        "type": "Expression"
+                    },
+                    "isSequential": false,
+                    "activities": [
+                        {
+                            "name": "Copy Storage to DB",
+                            "description": "Creates and loads table based on metadata passed in from interator",
+                            "type": "Copy",
+                            "dependsOn": [
+                                {
+                                    "activity": "Copy HTTP to Storage",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "7.00:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "ParquetSource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    }
+                                },
+                                "sink": {
+                                    "type": "AzureSqlSink",
+                                    "preCopyScript": {
+                                        "value": "DROP TABLE IF EXISTS [@{item().SinkSchema}].[@{item().SinkTable}]",
+                                        "type": "Expression"
+                                    },
+                                    "tableOption": "autoCreate",
+                                    "disableMetricsCollection": false
+                                },
+                                "enableStaging": false
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "DB_Parquet_files",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": {
+                                            "value": "@item().SourceContainer",
+                                            "type": "Expression"
+                                        },
+                                        "directory": {
+                                            "value": "@item().SourceDirectory",
+                                            "type": "Expression"
+                                        },
+                                        "file": {
+                                            "value": "@item().SourceFileName",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "DB_Connection",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "SinkTable": {
+                                            "value": "@item().SinkTable",
+                                            "type": "Expression"
+                                        },
+                                        "Schema": {
+                                            "value": "@item().SinkSchema",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Copy HTTP to Storage",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "7.00:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "ParquetSource",
+                                    "storeSettings": {
+                                        "type": "HttpReadSettings",
+                                        "requestMethod": "GET"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "ParquetSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageWriteSettings"
+                                    }
+                                },
+                                "enableStaging": true,
+                                "stagingSettings": {
+                                    "linkedServiceName": {
+                                        "referenceName": "Covid_Storage",
+                                        "type": "LinkedServiceReference"
+                                    },
+                                    "path": {
+                                        "value": "@item().StagePath",
+                                        "type": "Expression"
+                                    }
+                                }
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "HTTP_parquet",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "RelativeURL": {
+                                            "value": "@item().RelativeURL",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "DB_Parquet_files",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": {
+                                            "value": "@item().SourceContainer",
+                                            "type": "Expression"
+                                        },
+                                        "directory": {
+                                            "value": "@item().SourceDirectory",
+                                            "type": "Expression"
+                                        },
+                                        "file": {
+                                            "value": "@item().SourceFileName",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }  
+                        ],
+                        "parameters": {
+                            "pipelineList": {
+                                "type": "array"
+                            }
+                        },
+                        "folder": {
+                            "name": "Loading DB"
+                        },
+                        "annotations": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/datasets/DB_Parquet_files')]",
+                        "[concat(variables('factoryId'), '/datasets/DB_Connection')]"
+
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'),'/Load_DB_Driver')]",
+                    "type": "Microsoft.DataFactory/factories/pipelines",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "activities": [
+                            {
+                                "name": "Lookup1",
+                                "type": "Lookup",
+                                "dependsOn": [
+                                ],
+                                "policy": {
+                                    "timeout": "7.00:00:00",
+                                    "retry": 0,
+                                    "retryIntervalInSeconds": 30,
+                                    "secureOutput": false,
+                                    "secureInput": false
+                                },
+                                "userProperties": [
+                                ],
+                                "typeProperties": {
+                                    "source": {
+                                        "type": "DelimitedTextSource",
+                                        "storeSettings": {
+                                            "type": "AzureBlobStorageReadSettings",
+                                            "recursive": true
+                                        },
+                                        "formatSettings": {
+                                            "type": "DelimitedTextReadSettings"
+                                        }
+                                    },
+                                    "dataset": {
+                                        "referenceName": "Pipeline_Metadata",
+                                        "type": "DatasetReference"
+                                    },
+                                    "firstRowOnly": false
+                                }
+                            },
+                            {
+                                "name": "Load_DB_Driver",
+                                "type": "ExecutePipeline",
+                                "dependsOn": [
+                                    {
+                                        "activity": "Lookup1",
+                                        "dependencyConditions": [
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ],
+                                "userProperties": [
+                                ],
+                                "typeProperties": {
+                                    "pipeline": {
+                                        "referenceName": "Load_DB",
+                                        "type": "PipelineReference"
+                                    },
+                                    "waitOnCompletion": true,
+                                    "parameters": {
+                                        "pipelineList": {
+                                            "value": "@activity('Lookup1').output.value",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            }
+                        ],
+                        "folder": {
+                            "name": "Loading DB"
+                        },
+                        "annotations": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/pipelines/Load_DB')]",
+                        "[concat(variables('factoryId'), '/datasets/Pipeline_Metadata')]"
+
+                    ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'), '/Load_DB_Driver_Trigger')]",
+                    "type": "Microsoft.DataFactory/factories/triggers",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "annotations": [
+
+                        ],
+                        "runtimeState": "Started",
+                        "pipelines": [
+                            {
+                                "pipelineReference": {
+                                    "referenceName": "Load_DB_Driver",
+                                    "type": "PipelineReference"
+                                },
+                                "parameters": {
+
+                                }
+                            }
+                        ],
+                        "type": "ScheduleTrigger",
+                        "typeProperties": {
+                            "recurrence": {
+                                "frequency": "Day",
+                                "interval": 1,
+                                "startTime": "[parameters('triggerStartTime')]",
+                                "timeZone": "UTC",
+                                "schedule": {
+                                    "hours": [
+                                        8
+                                    ] //8am UTC
+                                }
+                            }
+                        }
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/pipelines/Load_DB_Driver')]"
+                    ]
+                }
+
+            ]
         }
-      }
-    }
-  ],
-  "outputs": {
-    "hostname": {
-      "type": "string",
-      "value": "[reference(variables('publicIPAddressName')).dnsSettings.fqdn]"
-    }
-  }
+    ]
 }
