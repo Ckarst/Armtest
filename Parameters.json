@@ -23,9 +23,6 @@
         "sqlAdministratorLogin": {
             "value": "GEN-UNIQUE"
           },
-          "sqlAdministratorLoginPassword": {		
-            "value": "!Q@W3e4r"		
-          },
           "transparentDataEncryption": {		
             "value": "Enabled"		
           }		
