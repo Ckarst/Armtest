@@ -216,27 +216,7 @@
             "location": "[parameters('dataFactoryLocation')]",
             "identity": {
                 "type": "SystemAssigned"
-            },
-            "resources": [
-                {
-                    "name": "[concat(parameters('dataFactoryName'), '/SQLDB')]",
-                    "type": "Microsoft.DataFactory/factories/linkedServices",
-                    "apiVersion": "2018-06-01",
-                    "properties": {
-                        "annotations": [
-
-                        ],
-                        "type": "AzureSqlDatabase",
-                        "typeProperties": {
-                            "connectionString": "[concat('Server=tcp:',variables('sqlServerName'),'.database.windows.net,1433;Database=',parameters('databaseName'),';User ID=', parameters('sqlAdministratorLogin'),'@',variables('sqlServerName'),';Password=',parameters('sqlAdministratorLoginPassword'),';Trusted_Connection=False;Encrypt=True;Connection Timeout=30')]"
-                        }
-                    },
-                    "dependsOn": [
-                        "[parameters('dataFactoryName')]",
-                        "[parameters('databaseName')]"
-                    ]
-                }
-            ]
+            }
         }
     ]
 }
