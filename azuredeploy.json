@@ -463,6 +463,194 @@
                         "[parameters('dataFactoryName')]",
                         "[concat(variables('factoryId'), '/linkedServices/Covid_Storage')]"
                     ]
+                },
+                {
+                    "name": "[concat(parameters('dataFactoryName'),'/Load_DB')]",
+                    "type": "Microsoft.DataFactory/factories/pipelines",
+                    "apiVersion": "2018-06-01",
+                    "properties": {
+                        "activities": [
+                          {
+                "name": "InterateDataSources",
+                "type": "ForEach",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@pipeline().parameters.pipelineList",
+                        "type": "Expression"
+                    },
+                    "isSequential": false,
+                    "activities": [
+                        {
+                            "name": "Copy Storage to DB",
+                            "description": "Creates and loads table based on metadata passed in from interator",
+                            "type": "Copy",
+                            "dependsOn": [
+                                {
+                                    "activity": "Copy HTTP to Storage",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "7.00:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "ParquetSource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    }
+                                },
+                                "sink": {
+                                    "type": "AzureSqlSink",
+                                    "preCopyScript": {
+                                        "value": "DROP TABLE IF EXISTS [@{item().SinkSchema}].[@{item().SinkTable}]",
+                                        "type": "Expression"
+                                    },
+                                    "tableOption": "autoCreate",
+                                    "disableMetricsCollection": false
+                                },
+                                "enableStaging": false
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "DB_Parquet_files",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": {
+                                            "value": "@item().SourceContainer",
+                                            "type": "Expression"
+                                        },
+                                        "directory": {
+                                            "value": "@item().SourceDirectory",
+                                            "type": "Expression"
+                                        },
+                                        "file": {
+                                            "value": "@item().SourceFileName",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "DB_Connection",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "SinkTable": {
+                                            "value": "@item().SinkTable",
+                                            "type": "Expression"
+                                        },
+                                        "Schema": {
+                                            "value": "@item().SinkSchema",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "Copy HTTP to Storage",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "7.00:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "ParquetSource",
+                                    "storeSettings": {
+                                        "type": "HttpReadSettings",
+                                        "requestMethod": "GET"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "ParquetSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobStorageWriteSettings"
+                                    }
+                                },
+                                "enableStaging": true,
+                                "stagingSettings": {
+                                    "linkedServiceName": {
+                                        "referenceName": "Covid_Storage",
+                                        "type": "LinkedServiceReference"
+                                    },
+                                    "path": {
+                                        "value": "@item().StagePath",
+                                        "type": "Expression"
+                                    }
+                                }
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "HTTP_parquet",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "RelativeURL": {
+                                            "value": "@item().RelativeURL",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "DB_Parquet_files",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": {
+                                            "value": "@item().SourceContainer",
+                                            "type": "Expression"
+                                        },
+                                        "directory": {
+                                            "value": "@item().SourceDirectory",
+                                            "type": "Expression"
+                                        },
+                                        "file": {
+                                            "value": "@item().SourceFileName",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }  
+                        ],
+                        "parameters": {
+                            "pipelineList": {
+                                "type": "array"
+                            }
+                        },
+                        "folder": {
+                            "name": "Loading DB"
+                        },
+                        "annotations": [
+                        ]
+                    },
+                    "dependsOn": [
+                        "[parameters('dataFactoryName')]",
+                        "[concat(variables('factoryId'), '/datasets/DB_Parquet_files')]",
+                        "[concat(variables('factoryId'), '/datasets/DB_Connection')]"
+
+                    ]
                 }
             ]
         }
